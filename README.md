@@ -2,6 +2,11 @@
 
 ### Record yourself speaking a foreign language, then rewatch the video with your mistakes on screen.
 
+<p>
+  <img src="docs/correction.jpg" width="49%" alt="A correction and the running transcript on the reviewed video">
+  <img src="docs/end-card.jpg" width="49%" alt="End card with today's grade, a 365-day chart, common errors and looked-up words">
+</p>
+
 `rewind` is a [Claude Code](https://claude.com/claude-code) skill. Run `/rewind` and it gives you three topics to talk about. Pick one, record a few minutes, and say **done**. A few minutes later a new video opens. It's your recording, with:
 
 - **Corrections at the moment you made them:** what you said in red, the fix in green, and a short reason.
@@ -59,7 +64,7 @@ Edit `settings.json`:
 | `level` | `"C1"` | The CEFR level the topics demand (the language, not the subject) |
 | `native_language` | `"English"` | Claude watches for calques from it |
 | `espeak_voice` | `"es-419"` | Reference pronunciation. List voices with `espeak-ng --voices=<lang>`, e.g. `fr-fr`, `pt-br`, `de`, `it`, `ja` |
-| `sessions_folder` | `"~/Desktop/Rewind"` | One folder per day, plus your error log and progress chart |
+| `sessions_folder` | `"~/Desktop/Rewind"` | One folder per day, plus your error log |
 | `recordings_folder` | Photo Booth library | Where to look for the newest recording |
 | `whisper_prompt` | `"Eh, pues... o sea, este..."` | Fillers in your language. They stop Whisper tidying up your grammar. |
 | `flag_english_vowels` | `true` | Flag English vowels (*uh*, short *i*/*u*). Turn off for languages that have them, e.g. French, German, Portuguese, Dutch, Russian |
