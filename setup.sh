@@ -16,4 +16,4 @@ python3 -m venv .venv
 .venv/bin/pip install --quiet -r requirements.txt
 
 [[ -f settings.json ]] || cp settings.example.json settings.json
-echo "Done. Edit settings.json for your language, then run /rewind in Claude Code."
+echo "Done. Edit settings.json for your language, then ask your AI agent to rewind."

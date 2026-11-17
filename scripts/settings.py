@@ -26,7 +26,7 @@ def load_settings() -> dict:
 
 
 def end_card_labels(session: Path) -> dict:
-    """Labels in the target language, written by Claude into end_screen.json; English otherwise."""
+    """Labels in the target language, written by the agent into end_screen.json; English otherwise."""
     end_screen = session / "end_screen.json"
     custom = json.loads(end_screen.read_text()).get("labels", {}) if end_screen.exists() else {}
     return {**DEFAULT_LABELS, **custom}

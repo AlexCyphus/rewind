@@ -1,7 +1,7 @@
 """Grade a session 0-100%.
 
 Usage: .venv/bin/python scripts/grade.py <session dir> <range score 0-100>
-Range is Claude's CEFR-anchored judgement of structures/vocab used: B1 40, B2 60, C1 80, native 100.
+Range is the agent's CEFR-anchored judgement of structures/vocab used: B1 40, B2 60, C1 80, native 100.
 Reads transcript.json, corrections.json, shaky.json, pauses.json from the session.
 Writes <session>/grade.json (the end card charts every grade.json in the sessions folder).
 """
