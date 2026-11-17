@@ -1,15 +1,15 @@
 """Burn corrections into a copy of the video as subtitles.
 
 Usage: .venv/bin/python scripts/burn.py <video> <corrections.json>
-corrections.json: [{"start": 12.3, "end": 15.0, "said": "...", "correct": "...", "why": "..."}]
+corrections.json: [{"start": 12.3, "end": 15.0, "said": "...", "correct": "...", "why": "...", "upgrade": false}]
 Writes reviewed.mp4 next to corrections.json.
 
 Layout, bottom to top, so the eyes stay in one place:
 - running transcript (from transcript.json), one line at a time, shaky words in orange
 - a speech bubble above each shaky word saying why (from shaky.json)
 - the current correction
-If end_screen.json sits next to it, appends an end card (plus today's grade and the
-365-day chart when grade.json and progress.png from grade.py are there too):
+If end_screen.json sits next to it, appends an end card rendered by end_card.py
+(with today's grade and the 365-day chart when grade.json from grade.py is there too):
 {"errors": [{"pattern": "...", "examples": ["said → correct"], "sessions": 2}],
  "words": [{"looked_up": "esquema", "better": "una idea", "note": "..."}],
  "labels": {...end card headings in the target language, see settings.DEFAULT_LABELS}}
@@ -21,15 +21,14 @@ from pathlib import Path
 
 from PIL import ImageFont
 
-from settings import end_card_labels
+from end_card import render_end_card
 
 FONT_FILE = "/System/Library/Fonts/HelveticaNeue.ttc"
 FONT_NAME = "Helvetica Neue"
 MIN_SECONDS_ON_SCREEN = 4.0
 LINE_LINGER_SECONDS = 1.0
 END_SCREEN_SECONDS = 20
-END_CARD_BACKGROUND = "0x1a1a19"
-CHART_SIZE = (660, 380)
+END_CARD_FADE_SECONDS = 0.6
 ORANGE = "&H00A5FF&"
 
 
@@ -91,7 +90,6 @@ class Layout:
             style("Transcript", self.transcript_size, "&H00FFFFFF", "&H00000000", 3, self.transcript_padding),
             style("Bubble", self.bubble_size, "&H00000000", "&H0000A5FF", 3, self.bubble_padding),
             style("Pointer", 1, "&H0000A5FF", "&H00000000", 1, 0),
-            style("EndCard", self.transcript_size, "&H00FFFFFF", "&H00000000", 1, 0),
             style("Fix", self.correction_size, "&H00FFFFFF", "&H00000000", 3, round(self.correction_size / 4)),
         ])
 
@@ -176,63 +174,6 @@ def correction_events(corrections: list[dict], layout: Layout) -> list[str]:
     return events
 
 
-def end_card_margin(layout: Layout) -> int:
-    return round(layout.width / 16)
-
-
-def chart_position(layout: Layout) -> tuple[int, int]:
-    margin = end_card_margin(layout)
-    column = (layout.width - 3 * margin) // 2
-    return 2 * margin + column, layout.height - round(layout.height / 18) - CHART_SIZE[1]
-
-
-def grade_event(grade: dict, labels: dict, start: float, layout: Layout) -> str:
-    x, chart_top = chart_position(layout)
-    title = round(layout.height / 15)
-    small = round(layout.height / 34)
-    text = (
-        f"{{\\an1\\pos({x},{chart_top - round(layout.height / 40)})}}"
-        f"{{\\fs{title}\\b1}}{ass_escape(labels['grade'])}: {grade['overall']}%{{\\b0}}\\N"
-        f"{{\\fs{small}\\c&HB7C2C3&}}{ass_escape(labels['accuracy'])} {grade['accuracy']} · "
-        f"{ass_escape(labels['range'])} {grade['range']}\\N"
-        f"{ass_escape(labels['fluency'])} {grade['fluency']} · {ass_escape(labels['pronunciation'])} {grade['pronunciation']}"
-    )
-    return dialogue(start, start + END_SCREEN_SECONDS, "EndCard", text)
-
-
-def end_screen_events(end_screen: dict, labels: dict, start: float, layout: Layout) -> list[str]:
-    end = start + END_SCREEN_SECONDS
-    title = round(layout.height / 15)
-    body = round(layout.height / 26)
-    small = round(layout.height / 34)
-    gap = f"{{\\fs{round(small / 2)}}}\\h"
-    margin = end_card_margin(layout)
-    top = round(layout.height / 10)
-    column = (layout.width - 3 * margin) // 2
-
-    error_lines = [f"{{\\fs{title}\\b1}}{ass_escape(labels['errors'])}{{\\b0}}", gap]
-    for index, error in enumerate(end_screen["errors"], 1):
-        times_seen = labels["times_seen"].format(count=error.get("sessions", 1))
-        repeat = f"  {{\\c{ORANGE}}}· {ass_escape(times_seen)}{{\\c&HFFFFFF&}}" if error.get("sessions", 1) > 1 else ""
-        error_lines.append(f"{{\\fs{body}}}{index}. {ass_escape(error['pattern'])}{repeat}")
-        error_lines += [f"{{\\fs{small}\\c&HBBBBBB&}}\\h\\h\\h\\h{ass_escape(example)}{{\\c&HFFFFFF&}}" for example in error["examples"]]
-        error_lines.append(gap)
-
-    word_lines = [f"{{\\fs{title}\\b1}}{ass_escape(labels['words'])}{{\\b0}}", gap]
-    for word in end_screen["words"]:
-        word_lines.append(
-            f"{{\\fs{body}\\c&H5050FF&}}{ass_escape(word['looked_up'])}{{\\c&HFFFFFF&}} → "
-            f"{{\\c&H60E060&}}{ass_escape(word['better'])}{{\\c&HFFFFFF&}}"
-        )
-        word_lines.append(f"{{\\fs{small}\\c&HBBBBBB&}}{ass_escape(word['note'])}{{\\c&HFFFFFF&}}")
-        word_lines.append(gap)
-
-    return [
-        dialogue(start, end, "EndCard", f"{{\\an7\\pos({margin},{top})}}" + "\\N".join(error_lines)),
-        dialogue(start, end, "EndCard", f"{{\\an7\\pos({2 * margin + column},{top})}}" + "\\N".join(word_lines)),
-    ]
-
-
 def build_ass(events: list[str], layout: Layout) -> str:
     return f"""[Script Info]
 ScriptType: v4.00+
@@ -266,19 +207,15 @@ def main() -> None:
     end_screen_path = corrections_path.with_name("end_screen.json")
     if end_screen_path.exists():
         end_card_start = video_duration(video)
-        labels = end_card_labels(corrections_path.parent)
-        events += end_screen_events(json.loads(end_screen_path.read_text()), labels, end_card_start, layout)
-        video_filter = (f"[0:v]tpad=stop_mode=add:stop_duration={END_SCREEN_SECONDS}:color={END_CARD_BACKGROUND},"
-                        f"ass={ass_path}[out]")
+        end_card_path = corrections_path.with_name("end_card.png")
+        render_end_card(corrections_path.parent, layout.width, layout.height).save(end_card_path)
+        inputs += ["-loop", "1", "-framerate", "30", "-t", f"{end_card_start + END_SCREEN_SECONDS:.2f}", "-i", str(end_card_path)]
+        video_filter = (
+            f"[0:v]tpad=stop_mode=add:stop_duration={END_SCREEN_SECONDS},ass={ass_path}[base];"
+            f"[1:v]format=rgba,fade=in:st={end_card_start:.2f}:d={END_CARD_FADE_SECONDS}:alpha=1[card];"
+            f"[base][card]overlay=0:0:enable='gte(t,{end_card_start:.2f})'[out]"
+        )
         audio_filter = f"apad=pad_dur={END_SCREEN_SECONDS}"
-        grade_path = corrections_path.with_name("grade.json")
-        chart_path = corrections_path.with_name("progress.png")
-        if grade_path.exists() and chart_path.exists():
-            events.append(grade_event(json.loads(grade_path.read_text()), labels, end_card_start, layout))
-            x, y = chart_position(layout)
-            inputs += ["-i", str(chart_path)]
-            video_filter = (video_filter.removesuffix("[out]") + "[base];"
-                            f"[base][1:v]overlay={x}:{y}:enable='gte(t,{end_card_start:.2f})'[out]")
 
     ass_path.write_text(build_ass(events, layout))
     output = corrections_path.with_name("reviewed.mp4")

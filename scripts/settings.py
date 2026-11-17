@@ -6,7 +6,8 @@ REPO = Path(__file__).resolve().parent.parent
 DEFAULT_LABELS = {
     "errors": "Common errors",
     "words": "Words you looked up",
-    "grade": "Today's grade",
+    "grade": "Today",
+    "since_last": "since last session",
     "accuracy": "Accuracy",
     "range": "Range",
     "fluency": "Fluency",
