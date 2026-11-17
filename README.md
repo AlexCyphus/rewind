@@ -1,4 +1,4 @@
-# rewind
+# ⏪ rewind
 
 Record yourself speaking a foreign language, then rewatch the video with your mistakes on screen.
 
@@ -28,16 +28,7 @@ The grade is 35% accuracy (errors per 100 words), 25% range (Claude's CEFR-ancho
 
 ## Languages
 
-Everything works in any language Whisper transcribes well. Each part has its own limits:
-
-| Part | Works for |
-|---|---|
-| Transcript, corrections, topics, looked-up words, end card, grade | Any language Whisper handles well. The best results are for widely spoken languages with low Whisper error rates: Spanish, French, German, Italian, Portuguese, Dutch, Catalan, Polish, Russian, Ukrainian, Swedish, Norwegian, Danish, Turkish, Greek, Japanese, Korean, Mandarin Chinese, Indonesian, Vietnamese, Hindi and more. |
-| Pronunciation: sound mismatches | Any of the 100+ languages espeak-ng supports. Acceptable variants (for example Spanish *b/β*, seseo and the Latin American *j*) are only built in for Spanish, Italian and Portuguese, so other languages will flag more false positives. Add yours to `EQUIVALENTS_BY_LANGUAGE` in `scripts/pronunciation.py`. |
-| Pronunciation: English-vowel check | For English speakers learning a language with "pure" vowels: Spanish, Italian, Japanese, Greek, Indonesian/Malay, Tagalog, Swahili, Hawaiian. Set `flag_english_vowels` to `false` for French, German, Portuguese, Dutch, Russian and other languages that have *ə*, *ɪ* or *ʊ* themselves. |
-| Subtitle font | Helvetica Neue. Non-Latin scripts (Japanese, Chinese, Korean, Arabic, Hindi…) rely on libass falling back to another font, which hasn't been tested. |
-
-Claude can't hear audio. All pronunciation feedback comes from the phoneme comparison, so treat orange words as "check this", not as a verdict.
+🇪🇸 Spanish · 🇫🇷 French · 🇩🇪 German · 🇮🇹 Italian · 🇧🇷 Portuguese · 🇳🇱 Dutch · 🇵🇱 Polish · 🇷🇺 Russian · 🇺🇦 Ukrainian · 🇸🇪 Swedish · 🇳🇴 Norwegian · 🇩🇰 Danish · 🇹🇷 Turkish · 🇬🇷 Greek · 🇯🇵 Japanese · 🇰🇷 Korean · 🇨🇳 Mandarin · 🇮🇩 Indonesian · 🇻🇳 Vietnamese · 🇮🇳 Hindi
 
 ## Requirements
 
@@ -71,7 +62,7 @@ Edit `settings.json`:
 | `sessions_folder` | `"~/Desktop/Rewind"` | One folder per day, plus your error log and progress chart |
 | `recordings_folder` | Photo Booth library | Where to look for the newest recording |
 | `whisper_prompt` | `"Eh, pues... o sea, este..."` | Fillers in your language. They stop Whisper tidying up your grammar. |
-| `flag_english_vowels` | `true` | See the Languages section above |
+| `flag_english_vowels` | `true` | Flag English vowels (*uh*, short *i*/*u*). Turn off for languages that have them, e.g. French, German, Portuguese, Dutch, Russian |
 | `extra_instructions` | `"Add the corrections to my Anki deck"` | Anything else to do after each review |
 
 ## Usage
