@@ -1,0 +1,14 @@
+{
+  "learner_name": "the learner",
+  "language": "es",
+  "language_name": "Spanish",
+  "variety": "Latin American Spanish",
+  "level": "C1",
+  "native_language": "English",
+  "espeak_voice": "es-419",
+  "sessions_folder": "~/Desktop/Rewind",
+  "recordings_folder": "~/Pictures/Photo Booth Library/Pictures",
+  "whisper_prompt": "Eh, pues... o sea, este, bueno, es que, eh, no sé.",
+  "flag_english_vowels": true,
+  "extra_instructions": ""
+}

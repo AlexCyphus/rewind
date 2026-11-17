@@ -1,0 +1,6 @@
+mlx-whisper==0.4.3
+numpy==2.4.6
+phonemizer==3.6.0
+pillow==13.0.0
+torch==2.15.0
+transformers==5.23.0
