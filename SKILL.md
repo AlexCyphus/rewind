@@ -34,11 +34,12 @@ Read `<skill>/settings.json` first (if it's missing, tell the learner to run `<s
 1. Video: newest video in `recordings_folder` (or a path the learner gives).
 2. `transcribe.py "<video>" "<session>"` → `transcript.txt/json`, `pauses.json`. Work out which topic was chosen and write it to `<session>/topic.txt`.
 3. `pronunciation.py "<video>" "<session>"` → `shaky.json`: words whose phonemes don't match what espeak expects, English vowels where pure vowels belong (if `flag_english_vowels`), or low Whisper confidence; repeats/restarts are skipped. Each entry's `why` is in English: rewrite every `why` in the target language (≤ 6 words) and save the file. You cannot hear audio, so pronunciation feedback is only what this file shows.
-4. Write `<session>/corrections.json`: `[{"start", "end", "said", "correct", "why", "upgrade"}]`
+4. Write `<session>/corrections.json`: `[{"start", "end", "said", "correct", "why", "upgrade", "translation"}]`
    - Real errors: grammar, agreement, prepositions, verb forms, mood, calques from `native_language`, wrong word. Sparse upgrades to more natural phrasing get `"upgrade": true` (they don't count against the grade), with `why` starting with the target-language equivalent of "More natural:".
+   - Words said in `native_language` mid-speech (the learner didn't know the word and said it in their own language): add `"translation": true`, `said` = the word as they said it, `correct` = how to say it in the target language, `why` = a few words of context. These show as a translation, don't count against the grade, and also go on the end card with the looked-up words.
    - Times from word timestamps in transcript.json; `said`/`correct` short chunks; `why` in the target language, ≤ 8 words. No two within ~2s of each other.
    - Whisper sometimes tidies grammar: if the transcript looks suspiciously clean somewhere, don't invent errors.
-5. Looked-up words: read `pauses.json`. A long pause (especially after fillers) followed by a content word = the learner looked that word up. For each, decide whether it fit what they meant; if not, give the better word with a short note on what the looked-up word really means.
+5. Looked-up words: every `translation` correction from step 4 counts as one. Then read `pauses.json`: a long pause (especially after fillers) followed by a content word = the learner looked that word up. For each, decide whether it fit what they meant; if not, give the better word with a short note on what the looked-up word really means.
 6. Update `<sessions_folder>/common-errors.json` (`{id: {pattern, dates[], examples[]}}`): add today's date to patterns seen again, add new ones. Keep ids stable across sessions so the counts mean something.
 7. Write `<session>/end_screen.json`:
    `{"errors": [{"pattern", "examples": [correct forms], "sessions": len(dates)}], "words": [{"looked_up", "better", "note"}], "labels": {...}}`

@@ -23,7 +23,7 @@ def grade(session: Path, range_score: int) -> dict:
     shaky = json.loads((session / "shaky.json").read_text())
     pauses = json.loads((session / "pauses.json").read_text())
 
-    real_errors = [c for c in corrections if not c.get("upgrade")]
+    real_errors = [c for c in corrections if not c.get("upgrade") and not c.get("translation")]
     pause_seconds = sum(p["seconds"] for p in pauses)
     speaking_minutes = (words[-1]["end"] - words[0]["start"] - pause_seconds) / 60
     total_minutes = (words[-1]["end"] - words[0]["start"]) / 60

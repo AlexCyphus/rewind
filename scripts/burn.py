@@ -1,13 +1,15 @@
 """Burn corrections into a copy of the video as subtitles.
 
 Usage: .venv/bin/python scripts/burn.py <video> <corrections.json>
-corrections.json: [{"start": 12.3, "end": 15.0, "said": "...", "correct": "...", "why": "...", "upgrade": false}]
+corrections.json: [{"start": 12.3, "end": 15.0, "said": "...", "correct": "...", "why": "...",
+                    "upgrade": false, "translation": false}]
+("translation": an English word said mid-speech; shown with its translation instead of struck through.)
 Writes reviewed.mp4 next to corrections.json.
 
 Layout, bottom to top, so the eyes stay in one place:
 - running transcript (from transcript.json), one line at a time, shaky words in orange
 - a speech bubble above each shaky word saying why (from shaky.json)
-- the current correction
+- the current correction, sitting just above however many bubble rows are on screen during it
 If end_screen.json sits next to it, appends an end card rendered by end_card.py
 (with today's grade and the 365-day chart when grade.json from grade.py is there too):
 {"errors": [{"pattern": "...", "examples": ["said → correct"], "sessions": 2}],
@@ -77,10 +79,16 @@ class Layout:
         self.pointer_height = round(self.bubble_size / 2)
         self.bubble_row_height = round(self.bubble_size * 1.15) + 2 * self.bubble_padding
         self.bubble_bottom = self.transcript_top - self.pointer_height
-        self.correction_bottom = self.bubble_bottom - self.bubble_row_height - round(height / 60)
+        self.stack_gap = round(height / 60)
         self.max_line_width = width * 0.9
         self.transcript_font = ImageFont.truetype(FONT_FILE, self.transcript_size)
         self.bubble_font = ImageFont.truetype(FONT_FILE, self.bubble_size)
+        self.correction_font = ImageFont.truetype(FONT_FILE, self.correction_size)
+
+    def correction_bottom(self, bubble_rows: int) -> int:
+        if bubble_rows == 0:
+            return self.transcript_top - self.stack_gap
+        return self.bubble_bottom - bubble_rows * self.bubble_row_height - self.stack_gap
 
     def styles(self) -> str:
         def style(name, size, primary, outline, border_style, outline_width):
@@ -115,7 +123,8 @@ def word_centres(line: list[dict], layout: Layout) -> list[float]:
     return centres
 
 
-def bubble_events(line: list[dict], shaky_by_start: dict, start: float, end: float, layout: Layout) -> list[str]:
+def bubble_events(line: list[dict], shaky_by_start: dict, start: float, end: float, layout: Layout) -> tuple[list[str], int]:
+    """Bubbles above the shaky words of one line, stacked into rows so none overlap. Returns events and rows used."""
     events, placed = [], []
     for word, centre in zip(line, word_centres(line, layout)):
         shaky = shaky_by_start.get(round(word["start"], 2))
@@ -135,13 +144,17 @@ def bubble_events(line: list[dict], shaky_by_start: dict, start: float, end: flo
             events.append(dialogue(start, end, "Pointer",
                                    f"{{\\an7\\pos({centre - half:.0f},{layout.bubble_bottom})\\p1}}"
                                    f"m 0 0 l {2 * half} 0 l {half} {half}{{\\p0}}"))
-    return events
+    rows_used = max((row for row, _, _ in placed), default=-1) + 1
+    return events, rows_used
 
 
-def transcript_events(segments: list[dict], shaky: list[dict], layout: Layout) -> list[str]:
+def transcript_events(
+    segments: list[dict], shaky: list[dict], layout: Layout
+) -> tuple[list[str], list[tuple[float, float, int]]]:
+    """Returns the events and, per transcript line, (start, end, bubble rows used) for stacking corrections."""
     shaky_by_start = {round(word["start"], 2): word for word in shaky}
     lines = [line for segment in segments for line in split_into_lines(segment["words"], layout)]
-    events = []
+    events, spans = [], []
     for index, line in enumerate(lines):
         start = line[0]["start"]
         next_start = lines[index + 1][0]["start"] if index + 1 < len(lines) else float("inf")
@@ -153,25 +166,42 @@ def transcript_events(segments: list[dict], shaky: list[dict], layout: Layout) -
         )
         events.append(dialogue(start, end, "Transcript",
                                f"{{\\an2\\pos({layout.width // 2},{layout.transcript_bottom - layout.transcript_padding})}}{text}"))
-        events += bubble_events(line, shaky_by_start, start, end, layout)
-    return events
+        bubbles, rows_used = bubble_events(line, shaky_by_start, start, end, layout)
+        events += bubbles
+        spans.append((start, end, rows_used))
+    return events, spans
 
 
-def correction_events(corrections: list[dict], layout: Layout) -> list[str]:
+def bubble_rows_during(start: float, end: float, spans: list[tuple[float, float, int]]) -> int:
+    return max((rows for line_start, line_end, rows in spans if line_start < end and start < line_end), default=0)
+
+
+def correction_events(corrections: list[dict], spans: list[tuple[float, float, int]], layout: Layout) -> list[str]:
     corrections = sorted(corrections, key=lambda correction: correction["start"])
     next_starts = [correction["start"] for correction in corrections[1:]] + [float("inf")]
-    small = round(layout.correction_size * 0.75)
     events = []
     for correction, next_start in zip(corrections, next_starts):
         end = min(max(correction["end"], correction["start"] + MIN_SECONDS_ON_SCREEN), next_start)
+        # Shrink long corrections so every line fits the frame width.
+        widest = max(layout.correction_font.getlength(correction[key]) for key in ("said", "correct"))
+        widest = max(widest, layout.correction_font.getlength(correction["why"]) * 0.75)
+        size = round(layout.correction_size * min(1, layout.max_line_width / widest))
+        said_style = "\\c&HF0C060&" if correction.get("translation") else "\\c&H5050FF&\\s1"
         text = (
-            f"{{\\an2\\pos({layout.width // 2},{layout.correction_bottom})}}"
-            f"{{\\c&H5050FF&\\s1}}{ass_escape(correction['said'])}{{\\s0}}\\N"
+            f"{{\\an2\\pos({layout.width // 2},{layout.correction_bottom(bubble_rows_during(correction['start'], end, spans))})"
+            f"\\fs{size}}}"
+            f"{{{said_style}}}{ass_escape(correction['said'])}{{\\s0}}\\N"
             f"{{\\c&H60E060&}}{ass_escape(correction['correct'])}\\N"
-            f"{{\\c&HFFFFFF&\\fs{small}}}{ass_escape(correction['why'])}"
+            f"{{\\c&HFFFFFF&\\fs{round(size * 0.75)}}}{ass_escape(correction['why'])}"
         )
         events.append(dialogue(correction["start"], end, "Fix", text))
     return events
+
+
+def without_translated(shaky: list[dict], corrections: list[dict]) -> list[dict]:
+    """English words said mid-speech already get a translation; don't also flag their pronunciation."""
+    translated = [(c["start"], c["end"]) for c in corrections if c.get("translation")]
+    return [word for word in shaky if not any(start <= word["start"] <= end for start, end in translated)]
 
 
 def build_ass(events: list[str], layout: Layout) -> str:
@@ -195,12 +225,14 @@ def main() -> None:
     corrections_path = Path(sys.argv[2]).expanduser().resolve()
     layout = Layout(*video_size(video))
 
-    events = correction_events(json.loads(corrections_path.read_text()), layout)
+    corrections = json.loads(corrections_path.read_text())
+    events, spans = [], []
     transcript_path = corrections_path.with_name("transcript.json")
     shaky_path = corrections_path.with_name("shaky.json")
     if transcript_path.exists():
         shaky = json.loads(shaky_path.read_text()) if shaky_path.exists() else []
-        events = transcript_events(json.loads(transcript_path.read_text()), shaky, layout) + events
+        events, spans = transcript_events(json.loads(transcript_path.read_text()), without_translated(shaky, corrections), layout)
+    events += correction_events(corrections, spans, layout)
 
     ass_path = corrections_path.with_name("corrections.ass")
     inputs, video_filter, audio_filter = ["-i", str(video)], f"[0:v]ass={ass_path}[out]", "anull"
