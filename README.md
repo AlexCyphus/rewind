@@ -1,6 +1,6 @@
 # ⏪ rewind
 
-**A video tutor for speaking practice.** Film yourself talking in the language you're learning, and get the video back with every mistake corrected on screen, mispronounced words flagged, and a grade to track your progress.
+### Record yourself speaking a foreign language, then rewatch the video with your mistakes on screen.
 
 `rewind` is a [Claude Code](https://claude.com/claude-code) skill. Run `/rewind` and it gives you three topics to talk about. Pick one, record a few minutes, and say **done**. A few minutes later a new video opens. It's your recording, with:
 
